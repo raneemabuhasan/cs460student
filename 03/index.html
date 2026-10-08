@@ -33,6 +33,30 @@
         var LASTOBJECT = null;
         var flag = false;
         var FLICKERING = false;
+        var WIREFRAME = false;
+
+        // Count the closed triangular surfaces, identifying duplicate seam vertices.
+        function updateBonusStats() {
+            var vertices = 0;
+            var storedVertices = 0;
+            var faces = 0;
+            for (var i = 0; i < TORI.length; i++) {
+                var geometry = TORI[i].geometry;
+                var t = Math.floor(geometry.parameters.tubularSegments);
+                var r = Math.floor(geometry.parameters.radialSegments);
+                vertices += t * r;
+                faces += geometry.index.count / 3;
+                storedVertices += geometry.attributes.position.count;
+            }
+            // Each triangle has 3 edges; each closed-surface edge joins 2 triangles.
+            var edges = faces * 3 / 2;
+            document.getElementById('bonus-stats').textContent =
+                'W: wireframe ' + (WIREFRAME ? 'ON' : 'OFF') +
+                ' | F: flicker | Shift + drag: create/resize\n' +
+                'Knots: ' + TORI.length + ' | Vertices: ' + vertices +
+                ' | Edges: ' + edges + ' | Triangle faces: ' + faces +
+                '\nClosed surfaces (seams counted once); stored vertices: ' + storedVertices;
+        }
 
         window.onload = function () {
 
@@ -80,6 +104,7 @@
             scene.add(knot);
             TORI.push(knot);
             LASTOBJECT = knot;
+            updateBonusStats();
 
             // interaction
             controls = new OrbitControls(camera, renderer.domElement);
@@ -111,7 +136,7 @@
                 if (intersects.length > 0) {
                     // Create a new solid Torus Knot with hotpink (#FF69B4) color
                     var new_geometry = new THREE.TorusKnotGeometry(10, 3, 100);
-                    var new_material = new THREE.MeshStandardMaterial({ color: '#FF69B4' });
+                    var new_material = new THREE.MeshStandardMaterial({ color: '#FF69B4', wireframe: WIREFRAME });
                     var new_knot = new THREE.Mesh(new_geometry, new_material);
 
                     // Position the new knot at the raycast intersection point
@@ -122,6 +147,7 @@
 
                     // Save to the list of created knots for later features
                     TORI.push(new_knot);
+                    updateBonusStats();
 
                     // Track as the most recently created knot and begin placement drag
                     LASTOBJECT = new_knot;
@@ -166,6 +192,18 @@
             };
             renderer.domElement.onmouseup = window.onmouseup;
 
+            // Bonus: toggle wireframe once per W press, including existing knots.
+            window.addEventListener('keydown', function (e) {
+                if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+                if (e.key.toLowerCase() === 'w') {
+                    WIREFRAME = !WIREFRAME;
+                    for (var i = 0; i < TORI.length; i++) {
+                        TORI[i].material.wireframe = WIREFRAME;
+                    }
+                    updateBonusStats();
+                }
+            });
+
             // Keyboard interaction: toggle flickering mode with 'f'
             window.onkeypress = function (e) {
                 if (e.key === 'f' || e.key === 'F' || e.code === 'KeyF') {
@@ -208,6 +246,11 @@
     </script>
 </head>
 
-<body></body>
+<body>
+    <div id="bonus-stats" style="position: fixed; top: 12px; left: 12px; z-index: 1;
+        color: white; background: rgba(0, 0, 0, 0.75); padding: 10px 14px;
+        font: 13px/1.6 monospace; white-space: pre-line; pointer-events: none;
+        max-width: calc(100vw - 52px);"></div>
+</body>
 
 </html>
